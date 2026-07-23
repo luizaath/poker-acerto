@@ -23,9 +23,8 @@ Built as a single, self-contained HTML file. No install, no backend, works offli
 
 ## 🚀 Live version
 
-Hosted with GitHub Pages: **https://YOUR-USERNAME.github.io/poker**
+Hosted with GitHub Pages: **https://github.com/luizaath/poker-acerto**
 
-*(Replace with your own link after enabling Pages.)*
 
 ## 🛠️ Run it locally
 
