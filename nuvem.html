@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Acerto de Poker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a222c; --panel2:#232e3a; --line:#2e3b49;
+    --txt:#e8eef4; --mut:#8b9bab; --green:#2ecc71; --red:#ff5c6c;
+    --gold:#f5c451; --accent:#3d9df0; --accent2:#2b7fd0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--txt); font-size:15px; padding-bottom:40px}
+  header{position:sticky; top:0; z-index:10; background:linear-gradient(180deg,#141b22,#0f1419);
+    border-bottom:1px solid var(--line); padding:12px 16px; display:flex; align-items:center; gap:10px}
+  header h1{font-size:17px; margin:0; flex:1; letter-spacing:.3px}
+  header .chip{font-size:22px}
+  header .who{font-size:12px; color:var(--mut); text-align:right; line-height:1.3}
+  .wrap{max-width:680px; margin:0 auto; padding:16px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px}
+  .card h2{font-size:14px; text-transform:uppercase; letter-spacing:.6px; color:var(--mut); margin:0 0 12px}
+  button{font-family:inherit; font-size:15px; cursor:pointer; border:none; border-radius:10px; padding:11px 14px; color:#fff; background:var(--accent); font-weight:600; transition:.15s}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.5; cursor:default}
+  button.ghost{background:transparent; border:1px solid var(--line); color:var(--txt)}
+  button.mini{padding:6px 10px; font-size:13px; border-radius:8px}
+  button.danger{background:transparent; color:var(--red); border:1px solid var(--red)}
+  button.gold{background:var(--gold); color:#20160a}
+  button.wide{width:100%}
+  input{font-family:inherit; font-size:15px; background:var(--panel2); border:1px solid var(--line);
+    color:var(--txt); border-radius:9px; padding:10px 11px; width:100%}
+  input:focus{outline:none; border-color:var(--accent)}
+  label{font-size:12px; color:var(--mut); display:block; margin-bottom:5px}
+  .row{display:flex; gap:8px; align-items:center}
+  .grow{flex:1}
+  .muted{color:var(--mut)}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+  .pill{display:inline-block; padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600}
+  .tabs{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap}
+  .tabs button{background:var(--panel2); color:var(--mut); font-weight:600; border:1px solid var(--line)}
+  .tabs button.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .plyr{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:10px}
+  .plyr .top{display:flex; align-items:center; gap:8px; margin-bottom:8px}
+  .plyr .name{font-weight:700; font-size:16px; flex:1}
+  .stat{display:flex; justify-content:space-between; font-size:13px; padding:3px 0}
+  .denom-row{display:grid; grid-template-columns:1fr 90px 70px 34px; gap:6px; align-items:center; margin-bottom:6px}
+  .cash-row{display:grid; grid-template-columns:1fr 78px 90px; gap:8px; align-items:center; margin-bottom:6px}
+  .swatch{width:16px; height:16px; border-radius:50%; border:1px solid rgba(255,255,255,.25); display:inline-block; vertical-align:middle; margin-right:6px}
+  .banner{border-radius:10px; padding:11px 13px; font-size:14px; margin-bottom:12px; font-weight:600; display:flex; align-items:center; gap:8px}
+  .banner.ok{background:rgba(46,204,113,.14); color:var(--green); border:1px solid rgba(46,204,113,.4)}
+  .banner.bad{background:rgba(255,92,108,.14); color:var(--red); border:1px solid rgba(255,92,108,.4)}
+  .settle{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:10px}
+  .settle .flow{font-size:16px; font-weight:700; margin-bottom:6px}
+  .settle .amt{color:var(--gold)}
+  .pixbox{background:var(--bg); border:1px dashed var(--line); border-radius:9px; padding:9px; font-family:ui-monospace,Menlo,monospace; font-size:11px; word-break:break-all; color:var(--mut); margin-top:8px}
+  .qr{background:#fff; padding:10px; border-radius:9px; width:fit-content; margin:8px auto 0}
+  .empty{text-align:center; color:var(--mut); padding:30px 10px}
+  .gamecard{display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px; cursor:pointer}
+  .gamecard:active{border-color:var(--accent)}
+  .gamecard .d{font-size:13px; color:var(--mut)}
+  .gamecard .big{font-size:16px; font-weight:700}
+  .add-link{color:var(--accent); font-weight:600; font-size:14px; cursor:pointer; display:inline-block; margin-top:4px}
+  .rebuy-tag{background:var(--bg); border:1px solid var(--line); border-radius:16px; padding:3px 9px; font-size:12px; margin:0 4px 4px 0; display:inline-flex; align-items:center; gap:5px}
+  .rebuy-tag .x{color:var(--red); cursor:pointer; font-weight:700}
+  .sub{font-size:12px; color:var(--mut); margin-top:-6px; margin-bottom:12px}
+  hr.sep{border:none; border-top:1px solid var(--line); margin:14px 0}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#06210f; padding:11px 18px; border-radius:24px; font-weight:700; z-index:100; opacity:0; transition:.25s; pointer-events:none}
+  .toast.show{opacity:1}
+  .toast.err{background:var(--red); color:#2a0007}
+  /* auth */
+  .auth{max-width:380px; margin:8vh auto 0; padding:0 18px; text-align:center}
+  .auth .logo{font-size:46px}
+  .auth h1{font-size:24px; margin:8px 0 2px}
+  .auth p.tag{color:var(--mut); margin:0 0 22px; font-size:14px}
+  .auth .card{text-align:left}
+  .auth label{margin-top:10px}
+  .auth .err{color:var(--red); font-size:13px; margin-top:10px; min-height:16px}
+  .auth .switch{color:var(--accent); font-weight:600; cursor:pointer}
+  .divider{display:flex; align-items:center; gap:10px; color:var(--mut); font-size:12px; margin:14px 0}
+  .divider::before,.divider::after{content:''; flex:1; height:1px; background:var(--line)}
+  .gbtn{background:#fff; color:#222; display:flex; align-items:center; justify-content:center; gap:8px}
+  .setupmsg{max-width:520px; margin:10vh auto; padding:20px; text-align:center}
+  .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin:14vh auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  code{background:var(--panel2); padding:2px 6px; border-radius:5px; font-size:13px}
+</style>
+</head>
+<body>
+<header id="hdr" style="display:none">
+  <span class="chip">🃏</span>
+  <h1>Acerto de Poker</h1>
+  <button class="ghost mini" id="homeBtn" onclick="goHome()" style="display:none">← Partidas</button>
+  <div class="who" id="who"></div>
+  <button class="ghost mini" id="outBtn" onclick="signOut()" style="display:none">Sair</button>
+</header>
+<div id="app"><div class="spin"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURAÇÃO DO SUPABASE
+   Troque os dois valores abaixo pelos do SEU projeto:
+   Supabase → Project Settings → API →  Project URL  e  anon public key
+============================================================ */
+const SUPABASE_URL      = 'https://uxvvzqmzifszycnevayw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_PjqyB008eUfBzVhu2X1tfQ_gz174FcX';
+
+/* ============ ESTADO ============ */
+let sb = null;
+let DB = {games:[]};
+let user = null;
+let currentId = null;
+let tab = 'setup';
+let authMode = 'login';   // login | signup
+
+const configured = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR-ANON');
+
+/* ============ HELPERS ============ */
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);})); }
+function toCents(v){ return Math.round((parseFloat(v)||0)*100); }
+function brl(cents){ return 'R$ '+(cents/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function game(){ return DB.games.find(g=>g.id===currentId); }
+function toast(msg,err){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); setTimeout(()=>t.className='toast',1800); }
+
+const DEFAULT_DENOMS = [
+  {label:'Branca',   color:'#f2f2f2', value:0.25},
+  {label:'Vermelha', color:'#e2483a', value:0.50},
+  {label:'Azul',     color:'#3d7ff0', value:1.00},
+  {label:'Verde',    color:'#2ecc71', value:5.00},
+  {label:'Preta',    color:'#111111', value:10.00},
+];
+
+/* ============ CÁLCULOS (idênticos à versão local) ============ */
+function investedCents(p){ return toCents(p.buyin) + (p.rebuys||[]).reduce((s,r)=>s+toCents(r),0); }
+function cashoutCents(p,g){ let c=0; g.denoms.forEach((d,i)=>{ c += (p.chips?.[i]||0) * toCents(d.value); }); return c; }
+function netCents(p,g){ return cashoutCents(p,g) - investedCents(p); }
+function totals(g){ let inC=0,outC=0; g.players.forEach(p=>{ inC+=investedCents(p); outC+=cashoutCents(p,g); }); return {inC,outC,diff:outC-inC}; }
+function settle(g){
+  const cr=[],db=[];
+  g.players.forEach(p=>{ const n=netCents(p,g); if(n>0)cr.push({name:p.name,pix:p,amt:n}); else if(n<0)db.push({name:p.name,pix:p,amt:-n}); });
+  cr.sort((a,b)=>b.amt-a.amt); db.sort((a,b)=>b.amt-a.amt);
+  const tx=[]; let i=0,j=0;
+  while(i<db.length&&j<cr.length){ const pay=Math.min(db[i].amt,cr[j].amt); if(pay>0)tx.push({from:db[i],to:cr[j],amt:pay}); db[i].amt-=pay; cr[j].amt-=pay; if(db[i].amt===0)i++; if(cr[j].amt===0)j++; }
+  return tx;
+}
+
+/* ============ PIX ============ */
+function tlv(id,val){ return id+String(val.length).padStart(2,'0')+val; }
+function crc16(str){ let crc=0xFFFF; for(let i=0;i<str.length;i++){ crc^=str.charCodeAt(i)<<8; for(let b=0;b<8;b++){ crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1); crc&=0xFFFF; } } return crc.toString(16).toUpperCase().padStart(4,'0'); }
+function sanitize(s,max){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase().slice(0,max).trim(); }
+function pixPayload({key,name,city,amountCents}){
+  if(!key) return null;
+  const merchant = tlv('00','br.gov.bcb.pix') + tlv('01', key.trim());
+  let p='';
+  p+=tlv('00','01'); p+=tlv('26',merchant); p+=tlv('52','0000'); p+=tlv('53','986');
+  if(amountCents>0) p+=tlv('54',(amountCents/100).toFixed(2));
+  p+=tlv('58','BR'); p+=tlv('59', sanitize(name,25)||'RECEBEDOR'); p+=tlv('60', sanitize(city,15)||'SAO PAULO');
+  p+=tlv('62', tlv('05','***')); p+='6304';
+  return p + crc16(p);
+}
+
+/* ============================================================
+   CAMADA DE DADOS — agora no Supabase (era localStorage)
+============================================================ */
+async function loadGames(){
+  const { data, error } = await sb.from('games').select('*').order('created_at',{ascending:false});
+  if(error){ toast('Erro ao carregar: '+error.message,true); DB.games=[]; return; }
+  DB.games = (data||[]).map(r=>({ id:r.id, name:r.name, date:r.date, denoms:r.data?.denoms||[], players:r.data?.players||[] }));
+}
+const _timers={};
+function save(){ saveGame(game()); }
+function saveGame(g){
+  if(!g||!user) return;
+  clearTimeout(_timers[g.id]);
+  _timers[g.id] = setTimeout(async ()=>{
+    const row={ id:g.id, user_id:user.id, name:g.name, date:g.date,
+      data:{denoms:g.denoms, players:g.players}, updated_at:new Date().toISOString() };
+    const { error } = await sb.from('games').upsert(row);
+    if(error) toast('Erro ao salvar: '+error.message,true);
+  }, 400);
+}
+async function deleteGameRow(id){
+  const { error } = await sb.from('games').delete().eq('id',id);
+  if(error) toast('Erro ao apagar: '+error.message,true);
+}
+
+/* ============================================================
+   AUTENTICAÇÃO
+============================================================ */
+async function boot(){
+  if(!configured){ renderSetupNeeded(); return; }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data:{ session } } = await sb.auth.getSession();
+  user = session?.user || null;
+  sb.auth.onAuthStateChange(async (_e, s)=>{
+    const was = user?.id;
+    user = s?.user || null;
+    if(user && user.id!==was){ await afterLogin(); }
+    else if(!user){ currentId=null; renderAuth(); updateHeader(); }
+  });
+  if(user){ await afterLogin(); } else { renderAuth(); updateHeader(); }
+}
+async function afterLogin(){ await loadGames(); render(); updateHeader(); }
+
+async function signIn(){
+  const email=val('email'), pass=val('pass');
+  setErr(''); btnBusy('go',true);
+  const { error } = await sb.auth.signInWithPassword({email,password:pass});
+  btnBusy('go',false);
+  if(error) setErr(traduz(error.message));
+}
+async function signUp(){
+  const email=val('email'), pass=val('pass');
+  if(pass.length<6){ setErr('A senha precisa ter pelo menos 6 caracteres.'); return; }
+  setErr(''); btnBusy('go',true);
+  const { data, error } = await sb.auth.signUp({email,password:pass});
+  btnBusy('go',false);
+  if(error){ setErr(traduz(error.message)); return; }
+  if(data.user && !data.session){ setErr(''); toast('Verifique seu e-mail pra confirmar a conta.'); }
+}
+async function googleLogin(){
+  const { error } = await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href.split('#')[0] } });
+  if(error) setErr(traduz(error.message));
+}
+async function signOut(){ await sb.auth.signOut(); }
+
+function traduz(m){
+  if(/Invalid login/i.test(m)) return 'E-mail ou senha incorretos.';
+  if(/already registered/i.test(m)) return 'Esse e-mail já tem conta. Faça login.';
+  if(/provider is not enabled/i.test(m)) return 'Login com Google ainda não configurado no Supabase.';
+  if(/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
+  return m;
+}
+
+/* ============================================================
+   RENDER
+============================================================ */
+function val(id){ return (document.getElementById(id)?.value||'').trim(); }
+function setErr(t){ const e=document.getElementById('autherr'); if(e) e.textContent=t; }
+function btnBusy(id,b){ const el=document.getElementById(id); if(el){ el.disabled=b; el.textContent=b?'...':el.dataset.label; } }
+
+function updateHeader(){
+  const hdr=document.getElementById('hdr');
+  hdr.style.display = user? 'flex':'none';
+  document.getElementById('homeBtn').style.display = (user&&currentId)?'block':'none';
+  document.getElementById('outBtn').style.display = user?'block':'none';
+  document.getElementById('who').textContent = user? (user.email||'') : '';
+}
+
+function renderSetupNeeded(){
+  document.getElementById('app').innerHTML = `
+  <div class="setupmsg">
+    <div style="font-size:44px">⚙️</div>
+    <h2>Falta configurar o Supabase</h2>
+    <p class="muted">Abra o <code>index.html</code> e preencha as duas linhas no topo do script:
+    <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> com os dados do seu projeto.
+    O passo a passo está no arquivo <code>BACKEND-SETUP.md</code>.</p>
+  </div>`;
+}
+
+function renderAuth(){
+  document.getElementById('app').innerHTML = `
+  <div class="auth">
+    <div class="logo">🃏</div>
+    <h1>Acerto de Poker</h1>
+    <p class="tag">${authMode==='login'?'Entre na sua conta':'Crie sua conta'}</p>
+    <div class="card">
+      <label>E-mail</label>
+      <input id="email" type="email" inputmode="email" placeholder="voce@email.com" autocomplete="email">
+      <label>Senha</label>
+      <input id="pass" type="password" placeholder="mínimo 6 caracteres" autocomplete="${authMode==='login'?'current-password':'new-password'}">
+      <div class="err" id="autherr"></div>
+      <button id="go" class="wide gold" data-label="${authMode==='login'?'Entrar':'Criar conta'}"
+        onclick="${authMode==='login'?'signIn()':'signUp()'}" style="margin-top:6px">${authMode==='login'?'Entrar':'Criar conta'}</button>
+      <div class="divider">ou</div>
+      <button class="wide gbtn" onclick="googleLogin()">
+        <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.7-2.9-.7-4.7s.3-3.3.7-4.7l-7.8-6.1C1 16.4 0 20.1 0 24s1 7.6 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.5-5.8c-2 1.4-4.7 2.3-7.5 2.3-6.4 0-11.7-3.7-13.6-9.3l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+        Continuar com Google
+      </button>
+    </div>
+    <p class="muted" style="font-size:14px">
+      ${authMode==='login'?'Não tem conta?':'Já tem conta?'}
+      <span class="switch" onclick="switchAuth()">${authMode==='login'?'Criar agora':'Entrar'}</span>
+    </p>
+  </div>`;
+  const p=document.getElementById('pass');
+  if(p) p.addEventListener('keydown',e=>{ if(e.key==='Enter'){ authMode==='login'?signIn():signUp(); }});
+}
+function switchAuth(){ authMode = authMode==='login'?'signup':'login'; setErr(''); renderAuth(); }
+
+function render(){
+  if(!user){ renderAuth(); updateHeader(); return; }
+  updateHeader();
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="wrap">${ currentId ? renderGame() : renderHome() }</div>`;
+  if(currentId && tab==='acerto') drawQRs();
+}
+function goHome(){ currentId=null; render(); }
+function openGame(id){ currentId=id; tab='setup'; render(); }
+
+/* ---- HOME ---- */
+function renderHome(){
+  const list = DB.games.map(g=>{
+    const t=totals(g), balanced=t.diff===0;
+    return `<div class="gamecard" onclick="openGame('${g.id}')">
+      <div style="font-size:24px">🎲</div>
+      <div class="grow">
+        <div class="big">${g.name||'Partida'}</div>
+        <div class="d">${g.date} · ${g.players.length} jogador(es) · pote ${brl(t.inC)}</div>
+      </div>
+      <span class="pill" style="background:${balanced?'rgba(46,204,113,.18)':'rgba(245,196,81,.18)'};color:${balanced?'var(--green)':'var(--gold)'}">${balanced?'fechado':'aberto'}</span>
+    </div>`;
+  }).join('');
+  return `
+  <div class="card"><button class="wide gold" onclick="newGame()">+ Nova partida</button></div>
+  <div class="card"><h2>Suas partidas</h2>
+    ${DB.games.length? list : '<div class="empty">Nenhuma partida ainda.<br>Crie a primeira acima 👆</div>'}
+  </div>`;
+}
+function newGame(){
+  const g={ id:uid(), name:'Mesa '+(DB.games.length+1), date:new Date().toLocaleDateString('pt-BR'),
+    denoms:DEFAULT_DENOMS.map(d=>({...d})), players:[] };
+  DB.games.unshift(g); saveGame(g); openGame(g.id);
+}
+async function delGame(){
+  if(!confirm('Apagar esta partida?')) return;
+  const id=currentId;
+  DB.games = DB.games.filter(x=>x.id!==id);
+  goHome();
+  await deleteGameRow(id);
+}
+
+/* ---- PARTIDA ---- */
+function renderGame(){
+  const g=game(); if(!g){ return renderHome(); }
+  const t=totals(g);
+  return `
+  <div class="row" style="margin-bottom:10px">
+    <input class="grow" value="${g.name}" onchange="setField('name',this.value)">
+    <button class="danger mini" onclick="delGame()">Apagar</button>
+  </div>
+  <div class="tabs">
+    <button class="${tab==='setup'?'active':''}" onclick="setTab('setup')">1 · Jogadores</button>
+    <button class="${tab==='fichas'?'active':''}" onclick="setTab('fichas')">2 · Fichas</button>
+    <button class="${tab==='acerto'?'active':''}" onclick="setTab('acerto')">3 · Acerto</button>
+  </div>
+  ${ tab==='setup'? renderSetup(g) : tab==='fichas'? renderFichas(g) : renderAcerto(g,t) }`;
+}
+function setTab(t){ tab=t; render(); }
+function setField(f,v){ game()[f]=v; save(); }
+
+function renderSetup(g){
+  const players = g.players.map((p,idx)=>`
+    <div class="plyr">
+      <div class="top">
+        <input class="grow" value="${p.name}" placeholder="Nome" onchange="setP(${idx},'name',this.value)" style="font-weight:700">
+        <button class="danger mini" onclick="delP(${idx})">✕</button>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <div class="grow"><label>Buy-in inicial (R$)</label>
+          <input type="number" inputmode="decimal" value="${p.buyin||''}" placeholder="50" onchange="setP(${idx},'buyin',this.value)"></div>
+      </div>
+      <label>Rebuys</label>
+      <div>${(p.rebuys||[]).map((r,ri)=>`<span class="rebuy-tag">${brl(toCents(r))}<span class="x" onclick="delRebuy(${idx},${ri})">✕</span></span>`).join('') || '<span class="muted" style="font-size:13px">nenhum</span>'}</div>
+      <span class="add-link" onclick="addRebuy(${idx})">+ adicionar rebuy</span>
+      <hr class="sep" style="margin:12px 0 8px">
+      <label>Chave Pix (pra receber, se ficar positivo)</label>
+      <input value="${p.pix?.key||''}" placeholder="CPF, e-mail, telefone ou aleatória" onchange="setPix(${idx},'key',this.value)">
+      <div class="row" style="margin-top:8px">
+        <div class="grow"><input value="${p.pix?.name||''}" placeholder="Nome do recebedor" onchange="setPix(${idx},'name',this.value)"></div>
+        <div style="width:120px"><input value="${p.pix?.city||''}" placeholder="Cidade" onchange="setPix(${idx},'city',this.value)"></div>
+      </div>
+    </div>`).join('');
+  return `<div class="card"><h2>Quem tá na mesa</h2>
+    ${g.players.length? players : '<div class="empty">Adicione os jogadores 👇</div>'}
+    <button class="wide ghost" onclick="addP()" style="margin-top:6px">+ Adicionar jogador</button>
+  </div>`;
+}
+function addP(){ game().players.push({id:uid(),name:'',buyin:'',rebuys:[],chips:{},pix:{}}); save(); render(); }
+function delP(i){ game().players.splice(i,1); save(); render(); }
+function setP(i,f,v){ game().players[i][f]=v; save(); if(f!=='name'&&f!=='buyin') render(); }
+function setPix(i,f,v){ const p=game().players[i]; p.pix=p.pix||{}; p.pix[f]=v; save(); }
+function addRebuy(i){ const v=prompt('Valor do rebuy (R$):','50'); if(v===null)return; const n=parseFloat(v.replace(',','.')); if(isNaN(n)||n<=0)return; const p=game().players[i]; p.rebuys=p.rebuys||[]; p.rebuys.push(n); save(); render(); }
+function delRebuy(i,ri){ game().players[i].rebuys.splice(ri,1); save(); render(); }
+
+function renderFichas(g){
+  const denoms = g.denoms.map((d,i)=>`
+    <div class="denom-row">
+      <input value="${d.label}" onchange="setDenom(${i},'label',this.value)">
+      <input type="number" inputmode="decimal" value="${d.value}" onchange="setDenom(${i},'value',this.value)">
+      <input value="${d.color}" onchange="setDenom(${i},'color',this.value)" style="text-align:center">
+      <button class="danger mini" onclick="delDenom(${i})">✕</button>
+    </div>`).join('');
+  const counts = g.players.map((p,idx)=>{
+    const rows = g.denoms.map((d,i)=>`
+      <div class="cash-row">
+        <div><span class="swatch" style="background:${d.color}"></span>${d.label} <span class="muted">(${brl(toCents(d.value))})</span></div>
+        <input type="number" inputmode="numeric" value="${p.chips?.[i]||''}" placeholder="0" onchange="setChip(${idx},${i},this.value)">
+        <div class="muted" style="text-align:right;font-size:13px">${brl((p.chips?.[i]||0)*toCents(d.value))}</div>
+      </div>`).join('');
+    return `<div class="plyr"><div class="top"><span class="name">${p.name||'—'}</span>
+        <span class="pill" style="background:rgba(245,196,81,.15);color:var(--gold)">saída ${brl(cashoutCents(p,g))}</span></div>${rows}</div>`;
+  }).join('');
+  return `<div class="card"><h2>Denominações das fichas</h2>
+    <div class="sub">Defina cor e valor em R$ de cada ficha.</div>
+    <div class="denom-row" style="color:var(--mut);font-size:12px"><div>Nome</div><div>Valor R$</div><div style="text-align:center">Cor</div><div></div></div>
+    ${denoms}<button class="ghost mini" onclick="addDenom()">+ ficha</button></div>
+  <div class="card"><h2>Contagem final por jogador</h2>
+    <div class="sub">Quantas fichas de cada cor cada um tinha no fim.</div>
+    ${g.players.length? counts : '<div class="empty">Cadastre jogadores na aba 1.</div>'}</div>`;
+}
+function setDenom(i,f,v){ game().denoms[i][f]=v; save(); render(); }
+function addDenom(){ game().denoms.push({label:'Nova',color:'#888888',value:1}); save(); render(); }
+function delDenom(i){ game().denoms.splice(i,1); game().players.forEach(p=>{ if(p.chips) delete p.chips[i]; }); save(); render(); }
+function setChip(pi,di,v){ const p=game().players[pi]; p.chips=p.chips||{}; p.chips[di]=parseInt(v)||0; save(); render(); }
+
+function renderAcerto(g,t){
+  const balanced=t.diff===0;
+  const banner = balanced
+    ? `<div class="banner ok">✅ Caixa fechado! Entrou ${brl(t.inC)} · saiu ${brl(t.outC)}</div>`
+    : `<div class="banner bad">⚠️ Caixa não fecha: diferença de ${brl(Math.abs(t.diff))} (${t.diff>0?'sobrando fichas':'faltando fichas'}). Confira a contagem antes de pagar.</div>`;
+  const results = g.players.map(p=>{ const n=netCents(p,g);
+    return `<div class="stat"><span>${p.name||'—'} <span class="muted">(pôs ${brl(investedCents(p))}, levou ${brl(cashoutCents(p,g))})</span></span>
+      <span class="${n>=0?'pos':'neg'}">${n>=0?'+':'−'}${brl(Math.abs(n))}</span></div>`; }).join('');
+  const tx=settle(g);
+  const txHtml = tx.length? tx.map((x,i)=>{
+    const payload=pixPayload({key:x.to.pix.pix?.key,name:x.to.pix.pix?.name||x.to.name,city:x.to.pix.pix?.city,amountCents:x.amt});
+    return `<div class="settle">
+      <div class="flow"><span class="neg">${x.from.name}</span> → <span class="pos">${x.to.name}</span> <span class="amt">${brl(x.amt)}</span></div>
+      ${ payload ? `<div class="qr" id="qr${i}"></div><div class="pixbox" id="px${i}">${payload}</div>
+        <button class="wide mini" onclick="copyPix('${i}')" style="margin-top:8px">📋 Copiar Pix copia e cola</button>`
+        : `<div class="muted" style="font-size:13px;margin-top:4px">Sem chave Pix pra ${x.to.name} (aba 1) — pague por fora.</div>` }
+    </div>`; }).join('') : '<div class="empty">Todo mundo empatou. Ninguém deve nada 🤝</div>';
+  window.__tx=tx;
+  return `${banner}
+  <div class="card"><h2>Resultado de cada um</h2>${results||'<div class="empty">—</div>'}</div>
+  <div class="card"><h2>Quem paga quem</h2><div class="sub">${tx.length} transferência(s) — o mínimo pra quitar tudo.</div>${txHtml}</div>`;
+}
+function drawQRs(){
+  (window.__tx||[]).forEach((x,i)=>{
+    const el=document.getElementById('qr'+i); if(!el)return;
+    const payload=pixPayload({key:x.to.pix.pix?.key,name:x.to.pix.pix?.name||x.to.name,city:x.to.pix.pix?.city,amountCents:x.amt});
+    if(payload){ el.innerHTML=''; new QRCode(el,{text:payload,width:150,height:150,correctLevel:QRCode.CorrectLevel.M}); }
+  });
+}
+function copyPix(i){
+  const txt=document.getElementById('px'+i).textContent;
+  navigator.clipboard.writeText(txt).then(()=>toast('Pix copiado!'),()=>{
+    const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Pix copiado!');
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
