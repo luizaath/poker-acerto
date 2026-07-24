@@ -116,6 +116,7 @@ let user = null;
 let currentId = null;
 let tab = 'setup';
 let authMode = 'login';   // login | signup
+let recovering = false;   // true quando o usuário chega pelo link de redefinir senha
 
 const configured = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR-ANON');
 
@@ -196,11 +197,12 @@ async function boot(){
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const { data:{ session } } = await sb.auth.getSession();
   user = session?.user || null;
-  sb.auth.onAuthStateChange(async (_e, s)=>{
+  sb.auth.onAuthStateChange(async (event, s)=>{
+    if(event==='PASSWORD_RECOVERY'){ user = s?.user||null; recovering=true; renderRecovery(); updateHeader(); return; }
     const was = user?.id;
     user = s?.user || null;
-    if(user && user.id!==was){ await afterLogin(); }
-    else if(!user){ currentId=null; renderAuth(); updateHeader(); }
+    if(user && user.id!==was){ recovering=false; await afterLogin(); }
+    else if(!user){ currentId=null; recovering=false; renderAuth(); updateHeader(); }
   });
   if(user){ await afterLogin(); } else { renderAuth(); updateHeader(); }
 }
@@ -227,6 +229,44 @@ async function googleLogin(){
   if(error) setErr(traduz(error.message));
 }
 async function signOut(){ await sb.auth.signOut(); }
+
+async function forgotPassword(){
+  let email = val('email');
+  if(!email){ email = (prompt('Digite seu e-mail pra receber o link de redefinição:')||'').trim(); }
+  if(!email){ return; }
+  setErr('');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] });
+  if(error){ setErr(traduz(error.message)); }
+  else { toast('Link de redefinição enviado! Confira seu e-mail.'); }
+}
+
+function renderRecovery(){
+  document.getElementById('app').innerHTML = `
+  <div class="auth">
+    <div class="logo">🔑</div>
+    <h1>Nova senha</h1>
+    <p class="tag">Escolha uma senha nova pra sua conta</p>
+    <div class="card">
+      <label>Nova senha</label>
+      <input id="newpass" type="password" placeholder="mínimo 6 caracteres" autocomplete="new-password">
+      <div class="err" id="autherr"></div>
+      <button id="savepass" class="wide gold" data-label="Salvar nova senha" onclick="saveNewPassword()" style="margin-top:6px">Salvar nova senha</button>
+    </div>
+  </div>`;
+  const p=document.getElementById('newpass');
+  if(p) p.addEventListener('keydown',e=>{ if(e.key==='Enter') saveNewPassword(); });
+}
+async function saveNewPassword(){
+  const p=val('newpass');
+  if(p.length<6){ setErr('A senha precisa ter pelo menos 6 caracteres.'); return; }
+  setErr(''); btnBusy('savepass',true);
+  const { error } = await sb.auth.updateUser({ password:p });
+  btnBusy('savepass',false);
+  if(error){ setErr(traduz(error.message)); return; }
+  recovering=false;
+  toast('Senha atualizada!');
+  await afterLogin();
+}
 
 function traduz(m){
   if(/Invalid login/i.test(m)) return 'E-mail ou senha incorretos.';
@@ -276,6 +316,7 @@ function renderAuth(){
       <div class="err" id="autherr"></div>
       <button id="go" class="wide gold" data-label="${authMode==='login'?'Entrar':'Criar conta'}"
         onclick="${authMode==='login'?'signIn()':'signUp()'}" style="margin-top:6px">${authMode==='login'?'Entrar':'Criar conta'}</button>
+      ${authMode==='login'?`<div style="text-align:center;margin-top:12px"><span class="switch" style="font-size:13px" onclick="forgotPassword()">Esqueci minha senha</span></div>`:''}
       <div class="divider">ou</div>
       <button class="wide gbtn" onclick="googleLogin()">
         <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.7-2.9-.7-4.7s.3-3.3.7-4.7l-7.8-6.1C1 16.4 0 20.1 0 24s1 7.6 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.5-5.8c-2 1.4-4.7 2.3-7.5 2.3-6.4 0-11.7-3.7-13.6-9.3l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
@@ -293,6 +334,7 @@ function renderAuth(){
 function switchAuth(){ authMode = authMode==='login'?'signup':'login'; setErr(''); renderAuth(); }
 
 function render(){
+  if(recovering){ renderRecovery(); updateHeader(); return; }
   if(!user){ renderAuth(); updateHeader(); return; }
   updateHeader();
   const app=document.getElementById('app');
